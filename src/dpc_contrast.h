@@ -4,10 +4,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <math.h>
-#include "dpc_core.h"
-#include "dpc_gdimage.h"
-#include "dpc_num.h"
+#include "kmz_core.h"
+#include "kmz_color.h"
+#include "kmz_transform.h"
 
-dpc_byte dpc_perform_contrast(size_t width, size_t height, size_t matrix_size, struct dpc_gd_2x_header_t * header, dpc_color_32 * image, dpc_color_32 * output);
+void dpc_perform_contrast(KmzImage * img);
 
 #endif /* dpc_contrast_h */
