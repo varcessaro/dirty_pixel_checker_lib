@@ -60,7 +60,7 @@ size_t _dpc_matrix_matches_pattern(const uint8_t mask[5][5], KmzMatrix * m) {
     kmz_point p = {.x=0, .y=0};
     for (p.y=0; p.y < 5; ++p.y) {
         for (p.x = 0; p.x < 5; ++p.x) {
-            kmz_argb_color c = kmz_argb_color_from_color_32(KmzMatrix__get_color_at(m, p));
+            kmz_argb_color c = kmz_argb_color__from_color_32(KmzMatrix__get_color_at(m, p));
             switch (mask[p.y][p.x]) {
                 case 0:
                     if (c.r || c.g || c.b) {
@@ -89,7 +89,7 @@ size_t _dpc_matrix_matches_any_pattern(KmzMatrix * m) {
 
 kmz_color_32 _dpc_contrast_matrix(KmzMatrix * m) {
     kmz_point p = {.x=2, .y=2};
-    kmz_argb_color c = kmz_argb_color_from_color_32(KmzMatrix__get_color_at(m, p));
+    kmz_argb_color c = kmz_argb_color__from_color_32(KmzMatrix__get_color_at(m, p));
     
     if (c.a > 0x00) {
         c = kmz_argb_color__RED;
@@ -102,7 +102,7 @@ kmz_color_32 _dpc_contrast_matrix(KmzMatrix * m) {
         
         if (192 < avg) {
             avg /= 3;
-            c = kmz_argb_color_from_channels(0x00, avg, avg, avg);
+            c = kmz_argb_color__from_channels(0x00, avg, avg, avg);
         } else if (36 < avg) {
             c = kmz_argb_color__GREY;
         } else if (30 < avg) {
@@ -112,7 +112,7 @@ kmz_color_32 _dpc_contrast_matrix(KmzMatrix * m) {
         }
     }
     
-    return kmz_color_32_from_argb_color(c);
+    return kmz_color_32__from_argb_color(c);
 }
 
 void dpc_perform_contrast(KmzImage * img) {
