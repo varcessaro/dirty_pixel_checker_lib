@@ -105,16 +105,26 @@ size_t _dpc_matrix_matches_any_pattern(KmzMatrix * m) {
     return 0;
 }
 
-kmz_color_32 _dpc_contrast_matrix(KmzMatrix * m) {
+static const size_t _contrast__TRANSPARENT = 0,
+_contrast__DIRTY = 1,
+_contrast__DARK = 2,
+_contrast__TOO_DARK = 3;
+
+kmz_color_32 _dpc_contrast_matrix(size_t argc, void * argv, KmzMatrix * m) {
     KmzPoint p = {.x=2, .y=2};
+    KmzArgbColor * cs = argv;
     KmzArgbColor c = KmzArgbColor__from_color_32(KmzMatrix__get_color_at(m, p));
     
+    if (4 == argc) {
+        memcpy(cs, argv, argc * sizeof(KmzArgbColor));
+    }
+    
     if (c.a > 0x00) {
-        c = KmzArgbColor__RED;
+        c = cs[_contrast__TRANSPARENT];
     } else if (!c.r && !c.g && !c.b) {
         c = KmzArgbColor__BLACK;
     } else if (_dpc_matrix_matches_any_pattern(m)) {
-        c = KmzArgbColor__YELLOW;
+        c = cs[_contrast__DIRTY];
     } else {
         uint32_t avg = c.r + c.g + c.b;
         
@@ -122,17 +132,28 @@ kmz_color_32 _dpc_contrast_matrix(KmzMatrix * m) {
             avg /= 3;
             c = KmzArgbColor__from_channels(0x00, avg, avg, avg);
         } else if (36 < avg) {
-            c = KmzArgbColor__GRAY;
+            c = KmzArgbColor__DARK_GRAY;
         } else if (30 < avg) {
-            c = KmzArgbColor__CYAN;
+            c = cs[_contrast__DARK];
         } else {
-            c = KmzArgbColor__LIME;
+            c = cs[_contrast__TOO_DARK];
         }
     }
     
     return kmz_color_32__from_argb_color(c);
 }
 
-void dpc_perform_contrast(KmzImage * img) {
-    KmzImage__apply_matrix_color_filter(img, &_dpc_contrast_matrix, 5);
+void dpc_perform_contrast(KmzImage * img, size_t argc, KmzArgbColor * argv) {
+    KmzRectangle area = {.pos={.x=0, .y=0}, .size=img->dimen};
+    KmzArgbColor cs[4] = {
+        KmzArgbColor__RED,
+        KmzArgbColor__YELLOW,
+        KmzArgbColor__CYAN,
+        KmzArgbColor__GREEN
+    };
+    if (0 == argc) {
+        argc = 4;
+        argv = cs;
+    }
+    KmzImage__apply_filter_with_args_to(img, argc, argv, &_dpc_contrast_matrix, area, 5);
 }
