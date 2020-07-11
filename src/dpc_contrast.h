@@ -9,4 +9,6 @@
 
 void dpc_perform_contrast(KmzImage * img, size_t argc, KmzArgbColor * argv);
 
+void dpc_perform_clean(KmzImage * img);
+
 #endif /* dpc_contrast_h */

@@ -96,19 +96,21 @@ size_t _dpc_matrix_matches_pattern(const uint8_t mask[5][5], KmzMatrix * m) {
     return 1;
 }
 
-size_t _dpc_matrix_matches_any_pattern(KmzMatrix * m) {
+const uint8_t ** _dpc_matrix_matches_any_pattern(KmzMatrix * m) {
     for (size_t i = 0; i < 6; ++i) {
         if (_dpc_matrix_matches_pattern(kmz_color_masks[i], m)) {
-            return 1;
+            return (const uint8_t **)kmz_color_masks[i];
         }
     }
-    return 0;
+    return NULL;
 }
 
 static const size_t _contrast__TRANSPARENT = 0,
 _contrast__DIRTY = 1,
 _contrast__DARK = 2,
 _contrast__TOO_DARK = 3;
+
+static const KmzArgbColor _DPC_DARK_GRAY = {.a=0, .r=64, .g=64, .b=64};
 
 kmz_color_32 _dpc_contrast_matrix(size_t argc, void * argv, KmzMatrix * m) {
     KmzPoint p = {.x=2, .y=2};
@@ -132,7 +134,7 @@ kmz_color_32 _dpc_contrast_matrix(size_t argc, void * argv, KmzMatrix * m) {
             avg /= 3;
             c = KmzArgbColor__from_channels(0x00, avg, avg, avg);
         } else if (36 < avg) {
-            c = KmzArgbColor__DARK_GRAY;
+            c = _DPC_DARK_GRAY;
         } else if (30 < avg) {
             c = cs[_contrast__DARK];
         } else {
@@ -156,4 +158,53 @@ void dpc_perform_contrast(KmzImage * img, size_t argc, KmzArgbColor * argv) {
         argv = cs;
     }
     KmzImage__apply_filter_with_args_to(img, argc, argv, &_dpc_contrast_matrix, area, 5);
+}
+
+kmz_color_32 _dpc_clean_matrix(size_t argc, void * argv, KmzMatrix * m) {
+    KmzPoint p = {.x=2, .y=2};
+    KmzArgbColor c = KmzArgbColor__from_color_32(KmzMatrix__get_color_at(m, p));
+    
+    if (!c.r || !c.g || !c.b) {
+        c = KmzArgbColor__BLACK;
+    } else {
+        const uint8_t ** pattern = _dpc_matrix_matches_any_pattern(m);
+        if (pattern) {
+            c = KmzArgbColor__BLACK;
+            for (p.y = 0; p.y < 5; ++p.y) {
+                for (p.x = 0; p.x < 5; ++p.x) {
+                    // We want to clean the entire pattern match if we encounter one. This prevents possible leaks of pixels.
+                    KmzMatrix__set_color_at(m, p, 0x000000);
+                }
+            }
+        } else {
+            uint32_t avg = c.r + c.g + c.b;
+            
+            if (36 < avg) {
+                // Do nothing
+            } else if (30 < avg) {
+                float black_c = 0.;
+                float total_c = 0.;
+                for (p.y = 1; p.y < 4; ++p.y) {
+                    for (p.x = 1; p.x < 4; ++p.x) {
+                        ++total_c;
+                        if (0x000000 == KmzMatrix__get_color_at(m, p)) {
+                            ++black_c;
+                        }
+                    }
+                }
+                if (black_c / total_c > 0.64) {
+                    c = KmzArgbColor__BLACK;
+                }
+            } else {
+                c = KmzArgbColor__BLACK;
+            }
+        }
+    }
+    
+    p.y = p.x = 2;
+    return kmz_color_32__from_argb_color(c);
+}
+
+void dpc_perform_clean(KmzImage * img) {
+    KmzImage__apply_filter(img, &_dpc_clean_matrix, 5);
 }
