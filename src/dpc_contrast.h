@@ -6,6 +6,7 @@
 #include <math.h>
 #include "kmz_core.h"
 #include "kmz_color.h"
+#include "kmz_experimental.h"
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
 #define DPC_THREADED 0
 #else

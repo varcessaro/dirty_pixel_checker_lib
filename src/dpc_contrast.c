@@ -3,24 +3,26 @@
 
 #define _dpc_matrix_compare(mask, color) (mask == (color != 0) || 2 == mask)
 
-size_t _dpc_matrix_perform_compare(KmzPoint * p, size_t s, size_t e, const uint8_t mask[5][5], KmzMatrix * m) {
+extern const uint8_t dpc__COLOR_MASKS[256][5][5];
+
+static inline size_t _dpc_matrix_perform_compare(KmzPoint * p, size_t s, size_t e, const uint8_t mask[5][5], KmzMatrix * m) {
     for (p->x = s; p->x < e; ++p->x)
-        if (!_dpc_matrix_compare(mask[p->y][p->x], KmzMatrix__get_color_at(m, *p)))
+        if (!_dpc_matrix_compare(mask[p->y][p->x], kmzexp__get_argb_at(m, *p)))
             return 0;
     ++p->y;
     return 1;
 }
 
-size_t _dpc_matrix_matches_pattern(const uint8_t mask[5][5], KmzMatrix * m) {
-    KmzPoint p = {.x=0, .y=0};
+static inline size_t _dpc_matrix_matches_pattern(const uint8_t mask[5][5], KmzMatrix * m) {
+    KmzPoint p = kmz_point(0, 0);
     return _dpc_matrix_perform_compare(&p, 1, 4, mask, m) &&
-    _dpc_matrix_perform_compare(&p, 0, 5, mask, m) &&
-    _dpc_matrix_perform_compare(&p, 0, 5, mask, m) &&
-    _dpc_matrix_perform_compare(&p, 0, 5, mask, m) &&
-    _dpc_matrix_perform_compare(&p, 1, 4, mask, m);
+           _dpc_matrix_perform_compare(&p, 0, 5, mask, m) &&
+           _dpc_matrix_perform_compare(&p, 0, 5, mask, m) &&
+           _dpc_matrix_perform_compare(&p, 0, 5, mask, m) &&
+           _dpc_matrix_perform_compare(&p, 1, 4, mask, m);
 }
 
-const uint8_t ** _dpc_matrix_matches_any_pattern(KmzMatrix * m) {
+static inline const uint8_t ** _dpc_matrix_matches_any_pattern(KmzMatrix * m) {
     for (size_t i = 0; i < 256; ++i) {
         if (_dpc_matrix_matches_pattern(dpc__COLOR_MASKS[i], m)) {
             return (const uint8_t **)dpc__COLOR_MASKS[i];
@@ -36,10 +38,9 @@ _contrast__TOO_DARK = 3;
 
 static const KmzArgbColor _DPC_DARK_GRAY = {.a=0, .r=64, .g=64, .b=64};
 
-kmz_color_32 _dpc_contrast_matrix(size_t argc, void * argv, KmzMatrix * m) {
-    KmzPoint p = {.x=2, .y=2};
+static inline kmz_color_32 _dpc_contrast_matrix(size_t argc, void * argv, KmzMatrix * m) {
     KmzArgbColor * cs = argv;
-    KmzArgbColor c = KmzArgbColor__from_color_32(KmzMatrix__get_color_at(m, p));
+    KmzArgbColor c = KmzArgbColor__from_color_32(kmzexp__get_argb_at(m, kmz_point(2, 2)));
     
     if (4 == argc) {
         memcpy(cs, argv, argc * sizeof(KmzArgbColor));
@@ -70,7 +71,6 @@ kmz_color_32 _dpc_contrast_matrix(size_t argc, void * argv, KmzMatrix * m) {
 }
 
 void dpc_perform_contrast(KmzImage * img, size_t argc, KmzArgbColor * argv) {
-    KmzRectangle area = {.pos={.x=0, .y=0}, .size=img->dimen};
     KmzArgbColor cs[4] = {
         KmzArgbColor__RED,
         KmzArgbColor__YELLOW,
@@ -81,12 +81,12 @@ void dpc_perform_contrast(KmzImage * img, size_t argc, KmzArgbColor * argv) {
         argc = 4;
         argv = cs;
     }
-    KmzImage__apply_filter_with_args_to(img, argc, argv, &_dpc_contrast_matrix, area, 5);
+    KmzImage__apply_filter(img, argc, argv, &_dpc_contrast_matrix, (KmzRectangle) {.pos={.x=0, .y=0}, .size=img->dimen}, 5);
 }
 
 kmz_color_32 _dpc_clean_pattern(size_t argc, void * argv, KmzMatrix * m) {
-    KmzPoint p = {.x=2, .y=2};
-    KmzArgbColor c = KmzArgbColor__from_color_32(KmzMatrix__get_color_at(m, p));
+    KmzPoint p = kmz_point(2, 2);
+    KmzArgbColor c = KmzArgbColor__from_color_32(kmzexp__get_argb_at(m, p));
     
     if (c.a) {
         c.a = 0;
@@ -100,7 +100,7 @@ kmz_color_32 _dpc_clean_pattern(size_t argc, void * argv, KmzMatrix * m) {
             for (p.y = 0; p.y < 5; ++p.y) {
                 for (p.x = 0; p.x < 5; ++p.x) {
                     // We want to clean the entire pattern match if we encounter one. This prevents possible leaks of pixels.
-                    KmzMatrix__set_color_at(m, p, 0x000000);
+                    kmzexp__set_argb_at(m, p, 0x000000);
                 }
             }
         }
@@ -110,8 +110,8 @@ kmz_color_32 _dpc_clean_pattern(size_t argc, void * argv, KmzMatrix * m) {
 }
 
 kmz_color_32 _dpc_clean_matrix(size_t argc, void * argv, KmzMatrix * m) {
-    KmzPoint p = {.x=1, .y=1};
-    KmzArgbColor c = KmzArgbColor__from_color_32(KmzMatrix__get_color_at(m, p));
+    KmzPoint p = kmz_point(1, 1);
+    KmzArgbColor c = KmzArgbColor__from_color_32(kmzexp__get_argb_at(m, p));
     
     if (!c.r || !c.g || !c.b) {
         c = KmzArgbColor__BLACK;
@@ -126,7 +126,7 @@ kmz_color_32 _dpc_clean_matrix(size_t argc, void * argv, KmzMatrix * m) {
             for (p.y = 0; p.y < 5; ++p.y) {
                 for (p.x = 0; p.x < 5; ++p.x) {
                     ++total_c;
-                    if (0x000000 == KmzMatrix__get_color_at(m, p)) {
+                    if (0x000000 == kmzexp__get_argb_at(m, p)) {
                         ++black_c;
                     }
                 }
@@ -143,5 +143,5 @@ kmz_color_32 _dpc_clean_matrix(size_t argc, void * argv, KmzMatrix * m) {
 }
 
 void dpc_perform_clean(KmzImage * img) {
-    KmzImage__apply_filter(img, &_dpc_clean_pattern, 5);
+    KmzImage__apply_filter(img, 0, NULL, &_dpc_clean_pattern, (KmzRectangle) {kmz_point(0, 0), img->dimen}, 5);
 }
